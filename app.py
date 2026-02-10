@@ -1,133 +1,123 @@
-import os
-import sqlite3
-import requests
-import pickle
+from flask import Flask, render_template, request, jsonify
 import pandas as pd
-from flask import Flask, render_template, request, jsonify, send_file
+import os
+import logging
 
-# ------------------------
-# Flask App Initialization
-# ------------------------
+# -----------------------------
+# App configuration
+# -----------------------------
 app = Flask(__name__)
+app.config["JSON_SORT_KEYS"] = False
 
-# ------------------------
-# Environment Variables
-# ------------------------
-WEATHER_API_KEY = os.environ.get("WEATHER_API_KEY")
+# -----------------------------
+# Logging (Production safe)
+# -----------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s"
+)
+logger = logging.getLogger(__name__)
 
-# ------------------------
-# Load ML Models
-# ------------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# -----------------------------
+# Load dataset (safe load)
+# -----------------------------
+DATA_FILE = "solar_data.csv"
 
-with open(os.path.join(BASE_DIR, "models", "linear.pkl"), "rb") as f:
-    linear_model = pickle.load(f)
+def load_data():
+    if os.path.exists(DATA_FILE):
+        try:
+            df = pd.read_csv(DATA_FILE)
+            logger.info("Solar dataset loaded successfully")
+            return df
+        except Exception as e:
+            logger.error(f"Error loading dataset: {e}")
+            return None
+    else:
+        logger.warning("solar_data.csv not found")
+        return None
 
-with open(os.path.join(BASE_DIR, "models", "random_forest.pkl"), "rb") as f:
-    rf_model = pickle.load(f)
+solar_df = load_data()
 
-# ------------------------
-# Database Setup
-# ------------------------
-DB_PATH = os.path.join(BASE_DIR, "predictions.db")
+# -----------------------------
+# Utility: Simple prediction logic
+# (No sklearn → deployment safe)
+# -----------------------------
+def predict_energy(hour: int):
+    """
+    Simple rule-based prediction
+    Safe for cloud deployment
+    """
+    if hour < 6 or hour > 18:
+        return 0.0
+    elif 6 <= hour < 9:
+        return 1.5
+    elif 9 <= hour < 15:
+        return 4.5
+    elif 15 <= hour <= 18:
+        return 2.5
+    return 0.0
 
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS predictions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            city TEXT,
-            hour INTEGER,
-            temperature REAL,
-            irradiance REAL,
-            model_used TEXT,
-            prediction REAL
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-init_db()
-
-# ------------------------
-# Helper: Fetch Weather Data
-# ------------------------
-def get_weather(city):
-    url = (
-        f"http://api.weatherapi.com/v1/current.json"
-        f"?key={WEATHER_API_KEY}&q={city}"
-    )
-    response = requests.get(url)
-    data = response.json()
-
-    if "error" in data:
-        return None, None
-
-    temperature = data["current"]["temp_c"]
-    irradiance = data["current"].get("uv", 5)  # fallback UV
-
-    return temperature, irradiance
-
-# ------------------------
+# -----------------------------
 # Routes
-# ------------------------
+# -----------------------------
 @app.route("/")
 def index():
     return render_template("index.html")
 
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok", "service": "renewable-energy-dashboard"})
+
 @app.route("/predict", methods=["POST"])
 def predict():
-    city = request.form.get("city")
-    hour = int(request.form.get("hour"))
-    model_choice = request.form.get("model")
+    try:
+        data = request.get_json()
 
-    temperature, irradiance = get_weather(city)
-    if temperature is None:
-        return jsonify({"error": "Invalid city name"}), 400
+        city = data.get("city", "Unknown")
+        hour = int(data.get("hour", 12))
 
-    features = pd.DataFrame([[hour, temperature, irradiance]],
-                             columns=["hour", "temperature", "irradiance"])
+        prediction = predict_energy(hour)
 
-    if model_choice == "random_forest":
-        prediction = rf_model.predict(features)[0]
-    else:
-        prediction = linear_model.predict(features)[0]
+        response = {
+            "city": city,
+            "hour": hour,
+            "predicted_energy_kwh": prediction,
+            "unit": "kWh"
+        }
 
-    # Save to DB
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO predictions (city, hour, temperature, irradiance, model_used, prediction)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (city, hour, temperature, irradiance, model_choice, float(prediction)))
-    conn.commit()
-    conn.close()
+        logger.info(f"Prediction generated: {response}")
+        return jsonify(response)
 
-    return jsonify({
-        "city": city,
-        "hour": hour,
-        "temperature": temperature,
-        "irradiance": irradiance,
-        "model": model_choice,
-        "prediction": round(float(prediction), 2)
-    })
+    except Exception as e:
+        logger.error(f"Prediction error: {e}")
+        return jsonify({
+            "error": "Invalid input",
+            "message": str(e)
+        }), 400
 
-@app.route("/download")
-def download_csv():
-    conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql_query("SELECT * FROM predictions", conn)
-    conn.close()
+@app.route("/data-preview")
+def data_preview():
+    if solar_df is None:
+        return jsonify({"error": "Dataset not available"}), 404
 
-    csv_path = os.path.join(BASE_DIR, "prediction_history.csv")
-    df.to_csv(csv_path, index=False)
+    return jsonify(solar_df.head(10).to_dict(orient="records"))
 
-    return send_file(csv_path, as_attachment=True)
+# -----------------------------
+# Error Handlers
+# -----------------------------
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "Route not found"}), 404
 
-# ------------------------
-# Railway / Gunicorn Entry
-# ------------------------
+@app.errorhandler(500)
+def server_error(e):
+    return jsonify({"error": "Internal server error"}), 500
+
+# -----------------------------
+# Main entry (IMPORTANT)
+# -----------------------------
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 8000))
+    logger.info(f"Starting app on port {port}")
     app.run(host="0.0.0.0", port=port)
 
