@@ -1,37 +1,47 @@
 import os
 import sqlite3
-import csv
-import datetime
-import joblib
-import numpy as np
 import requests
-from flask import Flask, render_template, request, send_file
+import pickle
+import pandas as pd
+from flask import Flask, render_template, request, jsonify, send_file
 
+# ------------------------
+# Flask App Initialization
+# ------------------------
 app = Flask(__name__)
 
-# ================= CONFIG =================
-DB_NAME = "predictions.db"
-WEATHER_API_KEY = "9c74a5c6cf5b4aee9ad84441261002"
-WEATHER_URL = "http://api.weatherapi.com/v1/current.json"
+# ------------------------
+# Environment Variables
+# ------------------------
+WEATHER_API_KEY = os.environ.get("WEATHER_API_KEY")
 
-MODELS = {
-    "Random Forest": joblib.load("models/random_forest.pkl"),
-    "Linear Regression": joblib.load("models/linear.pkl")
-}
+# ------------------------
+# Load ML Models
+# ------------------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ================= DB INIT =================
+with open(os.path.join(BASE_DIR, "models", "linear.pkl"), "rb") as f:
+    linear_model = pickle.load(f)
+
+with open(os.path.join(BASE_DIR, "models", "random_forest.pkl"), "rb") as f:
+    rf_model = pickle.load(f)
+
+# ------------------------
+# Database Setup
+# ------------------------
+DB_PATH = os.path.join(BASE_DIR, "predictions.db")
+
 def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS predictions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            time TEXT,
             city TEXT,
+            hour INTEGER,
             temperature REAL,
             irradiance REAL,
-            hour INTEGER,
-            model TEXT,
+            model_used TEXT,
             prediction REAL
         )
     """)
@@ -40,113 +50,84 @@ def init_db():
 
 init_db()
 
-# ================= WEATHER =================
+# ------------------------
+# Helper: Fetch Weather Data
+# ------------------------
 def get_weather(city):
-    params = {
-        "key": WEATHER_API_KEY,
-        "q": city
-    }
-    r = requests.get(WEATHER_URL, params=params, timeout=10)
-    data = r.json()
+    url = (
+        f"http://api.weatherapi.com/v1/current.json"
+        f"?key={WEATHER_API_KEY}&q={city}"
+    )
+    response = requests.get(url)
+    data = response.json()
 
     if "error" in data:
         return None, None
 
     temperature = data["current"]["temp_c"]
-    cloud = data["current"]["cloud"]
+    irradiance = data["current"].get("uv", 5)  # fallback UV
 
-    return temperature, cloud
+    return temperature, irradiance
 
-# ================= IRRADIANCE =================
-def estimate_irradiance(hour, cloud):
-    if hour < 6 or hour > 18:
-        return 100
-    base = 1000
-    reduction = (cloud / 100) * 600
-    return round(base - reduction, 2)
-
-# ================= HOME =================
-@app.route("/", methods=["GET", "POST"])
+# ------------------------
+# Routes
+# ------------------------
+@app.route("/")
 def index():
-    prediction = None
+    return render_template("index.html")
 
-    if request.method == "POST":
-        city = request.form["city"].strip()
-        hour = int(request.form["hour"])
-        model_name = request.form["model"]
+@app.route("/predict", methods=["POST"])
+def predict():
+    city = request.form.get("city")
+    hour = int(request.form.get("hour"))
+    model_choice = request.form.get("model")
 
-        temperature, cloud = get_weather(city)
+    temperature, irradiance = get_weather(city)
+    if temperature is None:
+        return jsonify({"error": "Invalid city name"}), 400
 
-        if temperature is None:
-            prediction = "City not found"
-        else:
-            irradiance = estimate_irradiance(hour, cloud)
-            model = MODELS[model_name]
+    features = pd.DataFrame([[hour, temperature, irradiance]],
+                             columns=["hour", "temperature", "irradiance"])
 
-            X = np.array([[temperature, irradiance, hour]])
-            prediction = round(float(model.predict(X)[0]), 2)
+    if model_choice == "random_forest":
+        prediction = rf_model.predict(features)[0]
+    else:
+        prediction = linear_model.predict(features)[0]
 
-            time_now = datetime.datetime.now().strftime("%H:%M:%S")
-
-            conn = sqlite3.connect(DB_NAME)
-            c = conn.cursor()
-            c.execute("""
-                INSERT INTO predictions
-                (time, city, temperature, irradiance, hour, model, prediction)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                time_now, city, temperature,
-                irradiance, hour, model_name, prediction
-            ))
-            conn.commit()
-            conn.close()
-
-    # Fetch history
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    history = c.execute("""
-        SELECT time, city, temperature,
-               irradiance, hour, model, prediction
-        FROM predictions
-        ORDER BY id DESC
-    """).fetchall()
+    # Save to DB
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO predictions (city, hour, temperature, irradiance, model_used, prediction)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (city, hour, temperature, irradiance, model_choice, float(prediction)))
+    conn.commit()
     conn.close()
 
-    return render_template(
-        "index.html",
-        prediction=prediction,
-        history=history,
-        models=MODELS.keys()
-    )
+    return jsonify({
+        "city": city,
+        "hour": hour,
+        "temperature": temperature,
+        "irradiance": irradiance,
+        "model": model_choice,
+        "prediction": round(float(prediction), 2)
+    })
 
-# ================= CSV DOWNLOAD (FIXED) =================
-@app.route("/download-csv")
+@app.route("/download")
 def download_csv():
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-
-    c.execute("""
-        SELECT time, city, temperature,
-               irradiance, hour, model, prediction
-        FROM predictions
-        ORDER BY id DESC
-    """)
-    rows = c.fetchall()
+    conn = sqlite3.connect(DB_PATH)
+    df = pd.read_sql_query("SELECT * FROM predictions", conn)
     conn.close()
 
-    file_path = os.path.join(os.getcwd(), "prediction_history.csv")
+    csv_path = os.path.join(BASE_DIR, "prediction_history.csv")
+    df.to_csv(csv_path, index=False)
 
-    with open(file_path, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow([
-            "Time", "City", "Temperature",
-            "Irradiance", "Hour", "Model", "Prediction"
-        ])
-        writer.writerows(rows)
+    return send_file(csv_path, as_attachment=True)
 
-    return send_file(file_path, as_attachment=True)
-
-# ================= RUN =================
+# ------------------------
+# Railway / Gunicorn Entry
+# ------------------------
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
 
