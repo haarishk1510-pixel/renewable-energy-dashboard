@@ -1,124 +1,116 @@
 import os
-import sqlite3
+import logging
 import pickle
-from datetime import datetime
-
-import numpy as np
+import pandas as pd
 from flask import Flask, render_template, request, jsonify
 
-# --------------------------------
-# Flask app
-# --------------------------------
 app = Flask(__name__)
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "predictions.db")
-MODEL_PATH = os.path.join(BASE_DIR, "models", "solar_model.pkl")
+logging.basicConfig(level=logging.INFO)
 
-# --------------------------------
-# Database init
-# --------------------------------
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS prediction_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT,
-            city TEXT,
-            hour INTEGER,
-            prediction REAL
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-init_db()
-
-# --------------------------------
-# Load ML model (SAFE)
-# --------------------------------
-ml_model = None
-ml_model_loaded = False
-
+# -----------------------------
+# Load Dataset
+# -----------------------------
 try:
-    if os.path.exists(MODEL_PATH):
-        with open(MODEL_PATH, "rb") as f:
-            ml_model = pickle.load(f)
-        ml_model_loaded = True
-except Exception:
-    ml_model = None
-    ml_model_loaded = False
+    dataset = pd.read_csv("solar_data.csv")
+    logging.info("Solar dataset loaded successfully")
+except Exception as e:
+    logging.error(f"Dataset loading failed: {e}")
+    dataset = None
 
-# --------------------------------
-# Fallback prediction
-# --------------------------------
-def fallback_prediction(hour):
-    if hour < 6 or hour > 18:
-        return 0.0
-    return round(5 * (1 - abs(hour - 12) / 6), 2)
+# -----------------------------
+# Load ML Model
+# -----------------------------
+model = None
+model_path = "models/solar_model.pkl"
 
-# --------------------------------
-# Routes
-# --------------------------------
+if os.path.exists(model_path):
+    try:
+        with open(model_path, "rb") as f:
+            model = pickle.load(f)
+        logging.info("ML model loaded successfully")
+    except Exception as e:
+        logging.warning(f"ML model failed to load: {e}")
+else:
+    logging.warning("ML model not found, using fallback logic")
+
+# -----------------------------
+# Home Page
+# -----------------------------
 @app.route("/")
-def index():
+def home():
     return render_template("index.html")
 
+# -----------------------------
+# Prediction Route
+# -----------------------------
 @app.route("/predict", methods=["POST"])
 def predict():
-    city = request.form.get("city", "Unknown")
-    hour = int(request.form.get("hour", 12))
+    try:
+        temperature = float(request.form["temperature"])
+        hour = float(request.form["hour"])
 
-    if ml_model_loaded:
-        prediction = float(ml_model.predict(np.array([[hour]]))[0])
-    else:
-        prediction = fallback_prediction(hour)
+        if model:
+            prediction = model.predict([[temperature, hour]])[0]
+        else:
+            # Fallback logic
+            prediction = temperature * 0.5 + hour * 0.3
 
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute(
-        "INSERT INTO prediction_history (timestamp, city, hour, prediction) VALUES (?, ?, ?, ?)",
-        (datetime.utcnow().isoformat(), city, hour, prediction)
-    )
-    conn.commit()
-    conn.close()
+        prediction = round(float(prediction), 2)
 
-    return jsonify({
-        "city": city,
-        "hour": hour,
-        "prediction": round(prediction, 2),
-        "ml_used": ml_model_loaded
-    })
+        # Save history
+        history_file = "prediction_history.csv"
 
+        new_data = pd.DataFrame({
+            "timestamp": [pd.Timestamp.now()],
+            "temperature": [temperature],
+            "hour": [hour],
+            "prediction": [prediction]
+        })
+
+        if os.path.exists(history_file):
+            new_data.to_csv(history_file, mode="a", header=False, index=False)
+        else:
+            new_data.to_csv(history_file, index=False)
+
+        return render_template("index.html", prediction=prediction)
+
+    except Exception as e:
+        logging.error(f"Prediction error: {e}")
+        return "Error in prediction"
+
+# -----------------------------
+# History Route
+# -----------------------------
 @app.route("/history")
 def history():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
+    try:
+        df = pd.read_csv("prediction_history.csv")
+        timestamps = df["timestamp"].astype(str).tolist()
+        predictions = df["prediction"].tolist()
 
-    c.execute("""
-        SELECT timestamp, city, hour, prediction
-        FROM prediction_history
-        ORDER BY timestamp DESC
-        LIMIT 100
-    """)
+        return render_template(
+            "history.html",
+            timestamps=timestamps,
+            predictions=predictions
+        )
+    except:
+        return "No prediction history available"
 
-    rows = c.fetchall()
-    conn.close()
-
-    return render_template("history.html", history=rows)
-
+# -----------------------------
+# Health Check
+# -----------------------------
 @app.route("/health")
 def health():
     return jsonify({
         "status": "ok",
-        "ml_model": ml_model_loaded
+        "dataset_loaded": dataset is not None,
+        "ml_model": model is not None
     })
 
-# --------------------------------
-# Entry (for local only)
-# --------------------------------
+# -----------------------------
+# Railway Port Binding
+# -----------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)

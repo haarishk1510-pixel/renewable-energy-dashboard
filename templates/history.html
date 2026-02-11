@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Prediction History</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        th {
+            background: #2c3e50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background: #f2f2f2;
+        }
+        a {
+            display: inline-block;
+            margin-bottom: 15px;
+            text-decoration: none;
+            color: #3498db;
+        }
+    </style>
+</head>
+<body>
+
+<a href="/">⬅ Back to Dashboard</a>
+
+<h1>📊 Prediction History</h1>
+
+<table>
+    <tr>
+        <th>Timestamp</th>
+        <th>City</th>
+        <th>Hour</th>
+        <th>Predicted Energy</th>
+    </tr>
+
+    {% for row in history %}
+    <tr>
+        <td>{{ row["timestamp"] }}</td>
+        <td>{{ row["city"] }}</td>
+        <td>{{ row["hour"] }}</td>
+        <td>{{ row["prediction"] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+{% if history|length == 0 %}
+<p style="text-align:center;">No prediction history available.</p>
+{% endif %}
+
+</body>
+</html>
+
