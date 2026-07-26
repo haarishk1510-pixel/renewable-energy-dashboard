@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Energy Predictor - SolarGrid Admin Portal</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-dark: #070d19;
+            --panel-bg: rgba(15, 23, 42, 0.8);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --accent-green: #10b981;
+            --accent-blue: #3b82f6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --font-family: 'Outfit', sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: rgba(11, 19, 38, 0.95);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .navbar {
+            display: flex;
+            background: rgba(15, 23, 42, 0.6);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 0 32px;
+            gap: 8px;
+        }
+
+        .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 14px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+        }
+
+        .nav-link:hover { color: var(--text-main); }
+        .nav-link.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+
+        main { flex: 1; padding: 28px 32px; max-width: 1200px; width: 100%; margin: 0 auto; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } }
+
+        .card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .form-control, .form-select {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: var(--text-main);
+            font-family: var(--font-family);
+            margin-top: 6px;
+            margin-bottom: 16px;
+        }
+
+        .btn {
+            padding: 14px;
+            border-radius: 8px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            font-family: var(--font-family);
+            background: linear-gradient(135deg, var(--accent-blue), #2563eb);
+            color: white;
+            width: 100%;
+        }
+
+        #resultValue {
+            font-size: 48px;
+            font-weight: 700;
+            color: var(--accent-green);
+            margin: 16px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h2 style="font-size: 20px;">🔮 AI ENERGY PREDICTOR PORTAL</h2>
+        <div>Yield Estimation & Database Storage Engine</div>
+    </header>
+
+    <nav class="navbar">
+        <a href="/admin" class="nav-link">📊 Executive Dashboard</a>
+        <a href="/controller" class="nav-link">🎛️ System Controller</a>
+        <a href="/predictor" class="nav-link active">🔮 AI Energy Predictor</a>
+        <a href="/database" class="nav-link">💾 Database Storage Portal</a>
+        <a href="/logs" class="nav-link">📜 System Audit Logs</a>
+    </nav>
+
+    <main>
+        <div class="grid-2">
+            <div class="card">
+                <h3 style="margin-bottom: 16px;">Forecast Parameters</h3>
+
+                <form onsubmit="runPrediction(event)">
+                    <label style="font-weight:600;">Ambient Temperature (°C)</label>
+                    <input type="number" step="0.1" id="predTemp" value="28.5" class="form-control" required>
+
+                    <label style="font-weight:600;">Solar Irradiance (W/m²)</label>
+                    <input type="number" step="10" id="predIrr" value="850" class="form-control" required>
+
+                    <label style="font-weight:600;">Hour of Day (0-23)</label>
+                    <input type="number" min="0" max="23" id="predHour" value="13" class="form-control" required>
+
+                    <label style="font-weight:600;">Active Model Engine</label>
+                    <select id="predModel" class="form-select">
+                        {% for m in available_models %}
+                        <option value="{{ m }}">🧠 {{ m }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <button type="submit" class="btn">⚡ Generate Forecast & Store in DB</button>
+                </form>
+            </div>
+
+            <div class="card" style="display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
+                <div style="font-size: 48px;">☀️</div>
+                <h3 style="color: var(--text-muted); font-size: 14px; text-transform: uppercase;">Forecasted Generation</h3>
+                <div id="resultValue">-- kWh</div>
+                <p id="resultMeta" style="font-size: 12px; color: var(--text-muted);">Run forecast to evaluate model output</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        async function runPrediction(e) {
+            e.preventDefault();
+            const payload = {
+                temperature: parseFloat(document.getElementById('predTemp').value),
+                irradiance: parseFloat(document.getElementById('predIrr').value),
+                hour: parseInt(document.getElementById('predHour').value),
+                model: document.getElementById('predModel').value
+            };
+
+            const res = await fetch('/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                document.getElementById('resultValue').innerText = data.prediction + ' kWh';
+                document.getElementById('resultMeta').innerText = `Engine: ${data.model_used} | ${data.timestamp}`;
+            } else {
+                alert('Prediction Error: ' + data.message);
+            }
+        }
+    </script>
+</body>
+</html>

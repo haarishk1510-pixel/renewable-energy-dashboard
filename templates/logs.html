@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Logs - SolarGrid Admin Portal</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-dark: #070d19;
+            --panel-bg: rgba(15, 23, 42, 0.8);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --accent-green: #10b981;
+            --accent-blue: #3b82f6;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --font-family: 'Outfit', sans-serif;
+            --mono-font: 'JetBrains Mono', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: rgba(11, 19, 38, 0.95);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .navbar {
+            display: flex;
+            background: rgba(15, 23, 42, 0.6);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 0 32px;
+            gap: 8px;
+        }
+
+        .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 14px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+        }
+
+        .nav-link:hover { color: var(--text-main); }
+        .nav-link.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+
+        main { flex: 1; padding: 28px 32px; max-width: 1400px; width: 100%; margin: 0 auto; }
+
+        .card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .log-console {
+            background: #040812;
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 20px;
+            height: 520px;
+            overflow-y: auto;
+            font-family: var(--mono-font);
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        .log-entry {
+            display: flex;
+            gap: 14px;
+            margin-bottom: 8px;
+            border-bottom: 1px dotted rgba(255, 255, 255, 0.05);
+            padding-bottom: 4px;
+        }
+
+        .log-time { color: var(--text-muted); min-width: 160px; }
+        .log-level-INFO { color: var(--accent-blue); font-weight: bold; }
+        .log-level-WARNING { color: var(--accent-amber); font-weight: bold; }
+        .log-level-ERROR { color: var(--accent-red); font-weight: bold; }
+        .log-comp { color: var(--accent-purple); min-width: 120px; }
+        .log-msg { color: #e2e8f0; flex: 1; }
+
+        .btn-secondary {
+            padding: 8px 16px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.08);
+            color: white;
+            border: 1px solid var(--panel-border);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h2 style="font-size: 20px;">📜 SYSTEM AUDIT LOGS PORTAL</h2>
+        <div>Real-Time Event Console & Logger</div>
+    </header>
+
+    <nav class="navbar">
+        <a href="/admin" class="nav-link">📊 Executive Dashboard</a>
+        <a href="/controller" class="nav-link">🎛️ System Controller</a>
+        <a href="/predictor" class="nav-link">🔮 AI Energy Predictor</a>
+        <a href="/database" class="nav-link">💾 Database Storage Portal</a>
+        <a href="/logs" class="nav-link active">📜 System Audit Logs</a>
+    </nav>
+
+    <main>
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="font-size: 16px;">Live System Audit Trail</h3>
+                <button class="btn-secondary" onclick="fetchLogs()">🔄 Refresh Logs</button>
+            </div>
+
+            <div class="log-console" id="logBox">
+                {% for l in logs %}
+                <div class="log-entry">
+                    <span class="log-time">[${l.timestamp}]</span>
+                    <span class="log-level-{{ l.level }}">{{ l.level }}</span>
+                    <span class="log-comp">[{{ l.component }}]</span>
+                    <span class="log-msg">{{ l.message }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </main>
+
+    <script>
+        async function fetchLogs() {
+            const res = await fetch('/api/logs?limit=100');
+            const data = await res.json();
+            if (data.status === 'success') {
+                const box = document.getElementById('logBox');
+                box.innerHTML = '';
+                data.logs.forEach(l => {
+                    box.innerHTML += `
+                        <div class="log-entry">
+                            <span class="log-time">[${l.timestamp}]</span>
+                            <span class="log-level-${l.level}">${l.level}</span>
+                            <span class="log-comp">[${l.component}]</span>
+                            <span class="log-msg">${l.message}</span>
+                        </div>
+                    `;
+                });
+            }
+        }
+        document.addEventListener('DOMContentLoaded', fetchLogs);
+    </script>
+</body>
+</html>

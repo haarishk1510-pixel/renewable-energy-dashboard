@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Executive Dashboard - SolarGrid Admin Portal</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #070d19;
+            --panel-bg: rgba(15, 23, 42, 0.8);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --card-bg: #0f172a;
+            --accent-green: #10b981;
+            --accent-blue: #3b82f6;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --font-family: 'Outfit', sans-serif;
+            --mono-font: 'JetBrains Mono', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 10% 10%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 90%, rgba(16, 185, 129, 0.08) 0%, transparent 40%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: rgba(11, 19, 38, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .brand-logo {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, #f59e0b, #10b981);
+            border-radius: 10px; display: flex; align-items: center; justify-content: center;
+            font-size: 22px; box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+        }
+        .brand-text h1 {
+            font-size: 20px; font-weight: 700;
+            background: linear-gradient(to right, #ffffff, #94a3b8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .brand-text p { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+
+        .navbar {
+            display: flex;
+            background: rgba(15, 23, 42, 0.6);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 0 32px;
+            gap: 8px;
+        }
+
+        .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 14px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .nav-link:hover { color: var(--text-main); background: rgba(255, 255, 255, 0.03); }
+        .nav-link.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); background: rgba(59, 130, 246, 0.05); }
+
+        main { flex: 1; padding: 28px 32px; max-width: 1600px; width: 100%; margin: 0 auto; }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 28px;
+        }
+
+        .card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 22px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .metric-title { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; margin-bottom: 8px; }
+        .metric-value { font-size: 28px; font-weight: 700; color: var(--text-main); }
+        .metric-unit { font-size: 14px; color: var(--text-muted); font-weight: 400; }
+        .metric-footer { font-size: 12px; color: var(--accent-green); margin-top: 10px; }
+
+        .grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+        @media (max-width: 1024px) { .grid-2 { grid-template-columns: 1fr; } }
+
+        .table-responsive { width: 100%; overflow-x: auto; border-radius: 12px; border: 1px solid var(--panel-border); }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+        th { background: rgba(15, 23, 42, 0.9); padding: 14px 18px; color: var(--text-muted); font-weight: 600; font-size: 11px; border-bottom: 1px solid var(--panel-border); }
+        td { padding: 14px 18px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+        .mono { font-family: var(--mono-font); }
+        .badge { padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+        .badge-green { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
+        .badge-blue { background: rgba(59, 130, 246, 0.2); color: var(--accent-blue); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand">
+            <div class="brand-logo">⚡</div>
+            <div class="brand-text">
+                <h1>SOLARGRID EXECUTIVE PORTAL</h1>
+                <p>Overview & Telemetry Portal</p>
+            </div>
+        </div>
+        <div>
+            <span class="badge badge-green">🟢 Grid State: {{ settings.grid_status }}</span>
+            <span class="badge badge-blue">🤖 Model: {{ settings.active_model }}</span>
+        </div>
+    </header>
+
+    <nav class="navbar">
+        <a href="/admin" class="nav-link active">📊 Executive Dashboard</a>
+        <a href="/controller" class="nav-link">🎛️ System Controller</a>
+        <a href="/predictor" class="nav-link">🔮 AI Energy Predictor</a>
+        <a href="/database" class="nav-link">💾 Database Storage Portal</a>
+        <a href="/logs" class="nav-link">📜 System Audit Logs</a>
+    </nav>
+
+    <main>
+        <div class="metrics-grid">
+            <div class="card">
+                <div class="metric-title">Live Grid Voltage</div>
+                <div class="metric-value">231.4 <span class="metric-unit">V</span></div>
+                <div class="metric-footer">▲ 50.0 Hz Nominal Grid Frequency</div>
+            </div>
+            <div class="card">
+                <div class="metric-title">Array Generation</div>
+                <div class="metric-value">342.8 <span class="metric-unit">kWh</span></div>
+                <div class="metric-footer">▲ Dynamic Dispatch Active</div>
+            </div>
+            <div class="card">
+                <div class="metric-title">Battery Reserve (SOC)</div>
+                <div class="metric-value">88.5 <span class="metric-unit">%</span></div>
+                <div class="metric-footer" style="color: var(--accent-blue);">● Storage Nominal</div>
+            </div>
+            <div class="card">
+                <div class="metric-title">Total Database Records</div>
+                <div class="metric-value">{{ total_count }} <span class="metric-unit">entries</span></div>
+                <div class="metric-footer" style="color: var(--accent-amber);">SQLite Persistent Storage</div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <h3 style="font-size: 16px; margin-bottom: 16px;">📈 24-Hour Solar Array Generation Trend</h3>
+                <div style="height: 320px;">
+                    <canvas id="telemetryChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 style="font-size: 16px; margin-bottom: 16px;">⚡ Telemetry Grid Feeds</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Voltage</th>
+                                <th>Yield</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in telemetry[:6] %}
+                            <tr>
+                                <td class="mono">{{ row.timestamp }}</td>
+                                <td>{{ row.voltage }}V</td>
+                                <td style="color: var(--accent-green); font-weight:600;">{{ row.solar_yield_kwh }} kWh</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const ctx = document.getElementById('telemetryChart').getContext('2d');
+            const res = await fetch('/api/telemetry');
+            const data = await res.json();
+            
+            const labels = data.telemetry.map(t => t.timestamp.split(' ')[1] || t.timestamp);
+            const yields = data.telemetry.map(t => t.solar_yield_kwh);
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Solar Yield (kWh)',
+                        data: yields,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#94a3b8' } } },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Records - SolarGrid Admin Portal</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-dark: #070d19;
+            --panel-bg: rgba(15, 23, 42, 0.75);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --card-bg: #0f172a;
+            --accent-green: #10b981;
+            --accent-blue: #3b82f6;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --font-family: 'Outfit', sans-serif;
+            --mono-font: 'JetBrains Mono', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 10% 10%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 90%, rgba(16, 185, 129, 0.08) 0%, transparent 40%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 30px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--accent-blue);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            padding: 8px 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .back-link:hover {
+            background: rgba(59, 130, 246, 0.2);
+            transform: translateX(-2px);
+        }
+
+        .card {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .title {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .input-control {
+            flex: 1;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: var(--text-main);
+            font-family: var(--font-family);
+            outline: none;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            font-family: var(--font-family);
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+        }
+
+        .btn-primary { background: var(--accent-blue); color: white; }
+        .btn-secondary { background: rgba(255, 255, 255, 0.08); color: white; border: 1px solid var(--panel-border); }
+
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 1px solid var(--panel-border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        th {
+            background: rgba(15, 23, 42, 0.95);
+            padding: 14px 18px;
+            color: var(--text-muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        td {
+            padding: 14px 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+        .mono { font-family: var(--mono-font); }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-blue { background: rgba(59, 130, 246, 0.2); color: var(--accent-blue); }
+        .badge-green { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
+
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <a href="/" class="back-link">⬅ Back to Admin & Controller Portal</a>
+            <div style="display: flex; gap: 10px;">
+                <a href="/api/database/export?format=csv" class="btn btn-secondary">📥 Download CSV Export</a>
+                <a href="/api/database/export?format=json" class="btn btn-secondary">📄 Download JSON Export</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="title">📊 Full Prediction & Telemetry Database Records</div>
+            <div class="subtitle">Showing {{ total_records }} total stored database entries</div>
+
+            <form class="search-bar" method="GET" action="/history">
+                <input type="text" name="search" value="{{ search }}" placeholder="Search by timestamp, model, status..." class="input-control">
+                <button type="submit" class="btn btn-primary">🔍 Filter</button>
+            </form>
+
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th># ID</th>
+                            <th>Timestamp</th>
+                            <th>Temp (°C)</th>
+                            <th>Irradiance</th>
+                            <th>Hour</th>
+                            <th>ML Engine</th>
+                            <th>Prediction</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in predictions %}
+                        <tr>
+                            <td class="mono">#{{ row.id }}</td>
+                            <td class="mono">{{ row.time }}</td>
+                            <td>{{ row.temperature }}°C</td>
+                            <td>{{ row.irradiance }} W/m²</td>
+                            <td>{{ row.hour }}:00</td>
+                            <td><span class="badge badge-blue">{{ row.model }}</span></td>
+                            <td style="color: var(--accent-green); font-weight: 700;">{{ row.prediction }} kWh</td>
+                            <td><span class="badge badge-green">{{ row.status }}</span></td>
+                        </tr>
+                        {% endfor %}
+
+                        {% if predictions|length == 0 %}
+                        <tr>
+                            <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                                No records found matching query "{{ search }}".
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination">
+                <div>Showing page {{ page }} of {{ total_pages }} ({{ total_records }} records)</div>
+                <div style="display: flex; gap: 8px;">
+                    {% if page > 1 %}
+                    <a href="/history?page={{ page - 1 }}&search={{ search }}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">← Previous</a>
+                    {% endif %}
+                    {% if page < total_pages %}
+                    <a href="/history?page={{ page + 1 }}&search={{ search }}" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Next →</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

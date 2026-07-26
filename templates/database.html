@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Portal - SolarGrid Admin Portal</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-dark: #070d19;
+            --panel-bg: rgba(15, 23, 42, 0.8);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --accent-green: #10b981;
+            --accent-blue: #3b82f6;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --font-family: 'Outfit', sans-serif;
+            --mono-font: 'JetBrains Mono', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: rgba(11, 19, 38, 0.95);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .navbar {
+            display: flex;
+            background: rgba(15, 23, 42, 0.6);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 0 32px;
+            gap: 8px;
+        }
+
+        .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 14px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+        }
+
+        .nav-link:hover { color: var(--text-main); }
+        .nav-link.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+
+        main { flex: 1; padding: 28px 32px; max-width: 1400px; width: 100%; margin: 0 auto; }
+
+        .card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            font-family: var(--font-family);
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+        }
+
+        .btn-primary { background: var(--accent-blue); color: white; }
+        .btn-secondary { background: rgba(255, 255, 255, 0.08); color: white; border: 1px solid var(--panel-border); }
+        .btn-danger { background: var(--accent-red); color: white; }
+
+        .form-control {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: var(--text-main);
+            font-family: var(--font-family);
+            outline: none;
+        }
+
+        .table-responsive { width: 100%; overflow-x: auto; border-radius: 12px; border: 1px solid var(--panel-border); }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+        th { background: rgba(15, 23, 42, 0.95); padding: 14px 18px; color: var(--text-muted); font-size: 11px; text-transform: uppercase; border-bottom: 1px solid var(--panel-border); }
+        td { padding: 14px 18px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+        .mono { font-family: var(--mono-font); }
+        .badge { padding: 4px 10px; border-radius: 12px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+        .badge-green { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
+        .badge-blue { background: rgba(59, 130, 246, 0.2); color: var(--accent-blue); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h2 style="font-size: 20px;">💾 SQLITE DATABASE STORAGE PORTAL</h2>
+        <div>High-Performance Persistent Data Engine</div>
+    </header>
+
+    <nav class="navbar">
+        <a href="/admin" class="nav-link">📊 Executive Dashboard</a>
+        <a href="/controller" class="nav-link">🎛️ System Controller</a>
+        <a href="/predictor" class="nav-link">🔮 AI Energy Predictor</a>
+        <a href="/database" class="nav-link active">💾 Database Storage Portal</a>
+        <a href="/logs" class="nav-link">📜 System Audit Logs</a>
+    </nav>
+
+    <main>
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                <div>
+                    <h3 style="font-size: 18px;">Database Actions & File Tools</h3>
+                    <p style="font-size: 12px; color: var(--text-muted);">Manage data storage, download CSV/JSON exports, upload dataset CSVs</p>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <a href="/api/database/export?format=csv" class="btn btn-secondary">📥 Export CSV</a>
+                    <a href="/api/database/export?format=json" class="btn btn-secondary">📄 Export JSON</a>
+                    <label class="btn btn-primary" style="cursor: pointer;">
+                        📤 Upload CSV <input type="file" id="csvFile" accept=".csv" style="display:none;" onchange="uploadCSV(this)">
+                    </label>
+                    <button class="btn btn-danger" onclick="clearDB()">⚠️ Wipe Records</button>
+                </div>
+            </div>
+
+            <div style="margin-top: 16px; display: flex; gap: 12px;">
+                <input type="text" id="dbQuery" placeholder="🔍 Search database entries by timestamp, model, status..." class="form-control" onkeyup="if(event.key==='Enter') loadRecords()">
+                <button class="btn btn-secondary" onclick="loadRecords()">Search</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th># ID</th>
+                            <th>Timestamp</th>
+                            <th>Temp (°C)</th>
+                            <th>Irradiance</th>
+                            <th>Hour</th>
+                            <th>ML Engine</th>
+                            <th>Prediction</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dbRows">
+                        {% for row in predictions %}
+                        <tr>
+                            <td class="mono">#{{ row.id }}</td>
+                            <td class="mono">{{ row.time }}</td>
+                            <td>{{ row.temperature }}°C</td>
+                            <td>{{ row.irradiance }} W/m²</td>
+                            <td>{{ row.hour }}:00</td>
+                            <td><span class="badge badge-blue">{{ row.model }}</span></td>
+                            <td style="color: var(--accent-green); font-weight: 700;">{{ row.prediction }} kWh</td>
+                            <td><span class="badge badge-green">{{ row.status }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        async function loadRecords() {
+            const query = document.getElementById('dbQuery').value;
+            const res = await fetch(`/api/database/records?search=${encodeURIComponent(query)}&limit=25`);
+            const data = await res.json();
+            if (data.status === 'success') {
+                const tbody = document.getElementById('dbRows');
+                tbody.innerHTML = '';
+                data.records.forEach(r => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="mono">#${r.id}</td>
+                            <td class="mono">${r.time}</td>
+                            <td>${r.temperature}°C</td>
+                            <td>${r.irradiance} W/m²</td>
+                            <td>${r.hour}:00</td>
+                            <td><span class="badge badge-blue">${r.model}</span></td>
+                            <td style="color: var(--accent-green); font-weight: 700;">${r.prediction} kWh</td>
+                            <td><span class="badge badge-green">${r.status}</span></td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        async function uploadCSV(input) {
+            if (!input.files || !input.files[0]) return;
+            const formData = new FormData();
+            formData.append('file', input.files[0]);
+
+            const res = await fetch('/api/database/import', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.status === 'success') {
+                alert(`Successfully imported ${data.imported_count} records into database!`);
+                loadRecords();
+            } else {
+                alert('Import error: ' + data.message);
+            }
+        }
+
+        async function clearDB() {
+            if (!confirm('Wipe ALL database records?')) return;
+            const res = await fetch('/api/database/clear', { method: 'POST' });
+            const data = await res.json();
+            if (data.status === 'success') {
+                alert('Database records cleared.');
+                loadRecords();
+            }
+        }
+    </script>
+</body>
+</html>

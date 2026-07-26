@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Controller - SolarGrid Admin Portal</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-dark: #070d19;
+            --panel-bg: rgba(15, 23, 42, 0.8);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --accent-green: #10b981;
+            --accent-blue: #3b82f6;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --font-family: 'Outfit', sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: rgba(11, 19, 38, 0.95);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .navbar {
+            display: flex;
+            background: rgba(15, 23, 42, 0.6);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 0 32px;
+            gap: 8px;
+        }
+
+        .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 14px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+        }
+
+        .nav-link:hover { color: var(--text-main); }
+        .nav-link.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+
+        main { flex: 1; padding: 28px 32px; max-width: 1200px; width: 100%; margin: 0 auto; }
+
+        .card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .form-control, .form-select {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: var(--text-main);
+            font-family: var(--font-family);
+            margin-top: 8px;
+            margin-bottom: 16px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            font-family: var(--font-family);
+        }
+
+        .btn-primary { background: var(--accent-blue); color: white; }
+        .btn-danger { background: var(--accent-red); color: white; }
+
+        .switch-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .toggle-switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255, 255, 255, 0.15); transition: .3s; border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px;
+            background-color: white; transition: .3s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--accent-green); }
+        input:checked + .slider.danger-slider { background-color: var(--accent-red); }
+        input:checked + .slider:before { transform: translateX(24px); }
+
+        #toast {
+            position: fixed; bottom: 24px; right: 24px;
+            background: var(--card-bg); border: 1px solid var(--accent-blue);
+            color: white; padding: 14px 20px; border-radius: 10px; display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h2 style="font-size: 20px;">🎛️ SYSTEM CONTROLLER PORTAL</h2>
+        <div>Operational Grid Control Center</div>
+    </header>
+
+    <nav class="navbar">
+        <a href="/admin" class="nav-link">📊 Executive Dashboard</a>
+        <a href="/controller" class="nav-link active">🎛️ System Controller</a>
+        <a href="/predictor" class="nav-link">🔮 AI Energy Predictor</a>
+        <a href="/database" class="nav-link">💾 Database Storage Portal</a>
+        <a href="/logs" class="nav-link">📜 System Audit Logs</a>
+    </nav>
+
+    <main>
+        <div class="card">
+            <h3 style="margin-bottom: 16px; color: var(--accent-blue);">Grid & ML Dispatch Control</h3>
+
+            <label style="font-weight:600;">Grid State</label>
+            <select id="ctrlGridStatus" class="form-select" onchange="updateSettings()">
+                <option value="ONLINE" {% if settings.grid_status == 'ONLINE' %}selected{% endif %}>🟢 ONLINE (Normal Operation)</option>
+                <option value="MAINTENANCE" {% if settings.grid_status == 'MAINTENANCE' %}selected{% endif %}>🟡 MAINTENANCE (Throttled)</option>
+                <option value="OFFLINE" {% if settings.grid_status == 'OFFLINE' %}selected{% endif %}>🔴 OFFLINE (Shutdown)</option>
+            </select>
+
+            <label style="font-weight:600;">Active Machine Learning Model</label>
+            <select id="ctrlActiveModel" class="form-select" onchange="updateSettings()">
+                {% for m in available_models %}
+                <option value="{{ m }}" {% if settings.active_model == m %}selected{% endif %}>🧠 {{ m }}</option>
+                {% endfor %}
+            </select>
+
+            <label style="font-weight:600;">Max Power Dispatch Threshold (kW)</label>
+            <input type="range" id="ctrlMaxCap" min="100" max="2500" step="50" value="{{ settings.max_power_limit }}" class="form-control" oninput="document.getElementById('capVal').innerText = this.value" onchange="updateSettings()">
+            <div style="text-align: right; color: var(--accent-amber); font-weight: bold; margin-bottom: 16px;">
+                Cap Limit: <span id="capVal">{{ settings.max_power_limit }}</span> kW
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-bottom: 16px; color: var(--accent-red);">Safety & Override Switches</h3>
+
+            <div class="switch-row">
+                <div>
+                    <strong>Emergency Master Cutoff</strong>
+                    <div style="font-size: 12px; color: var(--text-muted);">Instantly blocks energy dispatch & model execution</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="ctrlEmergency" {% if settings.emergency_cutoff == 'ON' %}checked{% endif %} onchange="updateSettings()">
+                    <span class="slider danger-slider"></span>
+                </label>
+            </div>
+
+            <div class="switch-row">
+                <div>
+                    <strong>Automated Dispatcher Engine</strong>
+                    <div style="font-size: 12px; color: var(--text-muted);">Enable dynamic grid load balancing</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="ctrlDispatch" {% if settings.dispatch_mode == 'AUTO' %}checked{% endif %} onchange="updateSettings()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div style="margin-top: 24px;">
+                <button class="btn btn-danger" style="width:100%;" onclick="emergencyReset()">🚨 Trigger Emergency Grid Shutdown</button>
+            </div>
+        </div>
+    </main>
+
+    <div id="toast">Notification</div>
+
+    <script>
+        async function updateSettings() {
+            const payload = {
+                grid_status: document.getElementById('ctrlGridStatus').value,
+                active_model: document.getElementById('ctrlActiveModel').value,
+                max_power_limit: document.getElementById('ctrlMaxCap').value,
+                emergency_cutoff: document.getElementById('ctrlEmergency').checked ? 'ON' : 'OFF',
+                dispatch_mode: document.getElementById('ctrlDispatch').checked ? 'AUTO' : 'MANUAL'
+            };
+
+            const res = await fetch('/api/system/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                showToast('Controller configuration updated successfully!');
+            }
+        }
+
+        async function emergencyReset() {
+            if (!confirm('Execute Emergency Grid Shutdown?')) return;
+            document.getElementById('ctrlEmergency').checked = true;
+            document.getElementById('ctrlGridStatus').value = 'OFFLINE';
+            await updateSettings();
+            showToast('🚨 Emergency Shutdown Activated!', 'error');
+        }
+
+        function showToast(msg, type='info') {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.borderColor = type === 'error' ? 'var(--accent-red)' : 'var(--accent-green)';
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 3000);
+        }
+    </script>
+</body>
+</html>
